@@ -1,10 +1,19 @@
 import { GithubSignInButton } from "@/components/Auth/components/signInWithGitub";
-import { Sparkles, CheckCircle2, Zap, Shield } from "lucide-react";
+import { Sparkles, CheckCircle2, Zap, Shield, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background relative">
+      {/* Back to Home Button - Visible on all screens */}
+      <Link
+        href="/"
+        className="absolute top-4 left-4 lg:left-auto lg:right-4 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-background/80 backdrop-blur-md border border-muted text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary/50 transition-all shadow-sm group"
+      >
+        <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+        Back to Home
+      </Link>
+
       {/* Left Side - Visual/Info (Hidden on mobile) */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-primary">
         {/* Background Pattern */}

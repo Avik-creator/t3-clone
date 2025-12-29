@@ -17,7 +17,7 @@ export const Hero = () => {
               <Sparkles className="mr-2 h-4 w-4" />
               Powered by Advanced AI Models
             </div>
-            <h1 className="text-5xl font-extrabold tracking-tight text-foreground sm:text-6xl mb-6">
+            <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-6xl mb-6">
               The Next Gen{" "}
               <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
                 AI Chat Experience.
@@ -113,11 +113,19 @@ export const Hero = () => {
                 </div>
                 <p className="mt-3 text-[10px] text-center text-muted-foreground leading-tight">
                   Make sure you agree to our{" "}
-                  <span className="underline cursor-pointer">Terms</span> and
-                  our{" "}
-                  <span className="underline cursor-pointer">
+                  <Link
+                    href="/terms"
+                    className="underline hover:text-foreground transition-colors"
+                  >
+                    Terms
+                  </Link>{" "}
+                  and our{" "}
+                  <Link
+                    href="/privacy"
+                    className="underline hover:text-foreground transition-colors"
+                  >
                     Privacy Policy
-                  </span>
+                  </Link>
                 </p>
               </div>
             </div>
