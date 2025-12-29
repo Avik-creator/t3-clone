@@ -81,78 +81,20 @@ export const Navbar = () => {
                 </Button>
               </Link>
             )}
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="inline-flex items-center justify-center rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none transition-colors"
-            >
-              {isMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
-            </button>
+            {session && (
+              <Image
+                src={session.user.image || ""}
+                alt={session.user.name || ""}
+                width={40}
+                height={40}
+                className="rounded-full border-2 border-primary/20"
+              />
+            )}
           </div>
         </div>
       </div>
 
       {/* Mobile Menu */}
-      {isMenuOpen && (
-        <div className="md:hidden border-b border-muted bg-background/95 backdrop-blur-lg px-4 py-6 space-y-6 animate-in slide-in-from-top duration-300">
-          {session?.user ? (
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 px-2">
-                {session.user.image && (
-                  <Image
-                    src={session.user.image}
-                    alt={session.user.name || ""}
-                    width={40}
-                    height={40}
-                    className="rounded-full border-2 border-primary/20"
-                  />
-                )}
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-foreground">
-                    {session.user.name}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {session.user.email}
-                  </span>
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Link
-                  href="/dashboard"
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/50 text-sm font-medium text-foreground hover:bg-muted transition-colors"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Dashboard
-                </Link>
-                <Button
-                  onClick={handleSignOut}
-                  variant="ghost"
-                  className="w-full justify-start gap-3 px-4 py-6 rounded-xl text-sm font-medium text-destructive hover:text-destructive hover:bg-destructive/10"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sign Out
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="grid gap-4">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-2">
-                Account
-              </p>
-              <Link
-                href="/login"
-                className="flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-primary text-primary-foreground font-semibold shadow-lg shadow-primary/20 active:scale-[0.98] transition-all"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Sign In to T3 Chat
-              </Link>
-            </div>
-          )}
-        </div>
-      )}
     </nav>
   );
 };

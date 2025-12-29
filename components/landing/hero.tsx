@@ -29,7 +29,7 @@ export const Hero = () => {
             </p>
             <div className="flex flex-col sm:flex-row items-center gap-4">
               {session ? (
-                <Link href="/dashboard" className="w-full sm:w-auto">
+                <Link href="/chat" className="w-full sm:w-auto">
                   <Button
                     size="lg"
                     className="h-12 px-8 text-base gap-2 w-full"
