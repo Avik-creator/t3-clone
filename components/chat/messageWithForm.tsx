@@ -213,7 +213,13 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
 
       if (messageFromUseChat && messageFromUseChat.role === "assistant") {
         // Retry the specific assistant message from useChat
-        regenerate({ messageId });
+        regenerate({
+          messageId,
+          body: {
+            model: selectedModel,
+            chatId,
+          }
+        });
       } else {
         // If it's not a useChat message, regenerate the last assistant message from useChat
         const lastAssistantMessage = [...messages]
@@ -221,7 +227,13 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
           .find((msg) => msg.role === "assistant");
 
         if (lastAssistantMessage) {
-          regenerate({ messageId: lastAssistantMessage.id });
+          regenerate({
+            messageId: lastAssistantMessage.id,
+            body: {
+              model: selectedModel,
+              chatId,
+            }
+          });
         }
       }
     } else {
@@ -231,7 +243,13 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
         .find((msg) => msg.role === "assistant");
 
       if (lastAssistantMessage) {
-        regenerate({ messageId: lastAssistantMessage.id });
+        regenerate({
+          messageId: lastAssistantMessage.id,
+          body: {
+            model: selectedModel,
+            chatId,
+          }
+        });
       }
     }
   };
