@@ -232,7 +232,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
             {status === "streaming" && (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Spinner />
-                <span className="text-sm">AI is thinking... (status: {status})</span>
+                <span className="text-sm">AI is thinking...</span>
               </div>
             )}
           </ConversationContent>
