@@ -9,7 +9,7 @@ import {
   ConversationContent,
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
-import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
+import { Message, MessageContent, MessageResponse, MessageToolbar, MessageAction } from "@/components/ai-elements/message";
 import {
   PromptInput,
   PromptInputBody,
@@ -156,14 +156,19 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
     setInput("");
   };
 
-  const handleRetry = () => {
-    // Find the last assistant message to regenerate
-    const lastAssistantMessage = [...messageToRender]
-      .reverse()
-      .find((msg) => msg.role === "assistant");
+  const handleRetry = (messageId?: string) => {
+    if (messageId) {
+      // Retry a specific message
+      regenerate({ messageId });
+    } else {
+      // Fallback: Find the last assistant message to regenerate
+      const lastAssistantMessage = [...messageToRender]
+        .reverse()
+        .find((msg) => msg.role === "assistant");
 
-    if (lastAssistantMessage) {
-      regenerate({ messageId: lastAssistantMessage.id });
+      if (lastAssistantMessage) {
+        regenerate({ messageId: lastAssistantMessage.id });
+      }
     }
   };
 
@@ -207,6 +212,16 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
                               <MessageContent>
                                 <MessageResponse>{part.text}</MessageResponse>
                               </MessageContent>
+                              {message.role === "assistant" && (
+                                <MessageToolbar>
+                                  <MessageAction
+                                    onClick={() => handleRetry(message.id)}
+                                    tooltip="Retry this response"
+                                  >
+                                    <RotateCcwIcon size={14} />
+                                  </MessageAction>
+                                </MessageToolbar>
+                              )}
                             </Message>
                           );
 
@@ -233,6 +248,16 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
                       <MessageContent>
                         <MessageResponse>{message.content}</MessageResponse>
                       </MessageContent>
+                      {message.role === "assistant" && (
+                        <MessageToolbar>
+                          <MessageAction
+                            onClick={() => handleRetry(message.id)}
+                            tooltip="Retry this response"
+                          >
+                            <RotateCcwIcon size={14} />
+                          </MessageAction>
+                        </MessageToolbar>
+                      )}
                     </Message>
                   )}
                 </Fragment>
@@ -248,20 +273,22 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
           <ConversationScrollButton />
         </Conversation>
 
-        <PromptInput onSubmit={handleSubmit} className={"mt-4"}>
+        <PromptInput onSubmit={handleSubmit} className={"mt-6"}>
           <PromptInputBody>
             <PromptInputTextarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type your message..."
-              className="rounded-md"
-            // disabled={status === "" }
+              className="rounded-lg border-2 focus:border-primary/50 transition-colors min-h-[60px] resize-none"
             />
           </PromptInputBody>
           <div className="flex items-center justify-between">
-            <PromptInputTools className={"flex items-center gap-2"}>
+            <PromptInputTools className={"flex items-center gap-3"}>
               {isModelLoading ? (
-                <Spinner />
+                <div className="flex items-center gap-2 px-3 py-2">
+                  <Spinner className="h-4 w-4" />
+                  <span className="text-sm text-muted-foreground">Loading models...</span>
+                </div>
               ) : (
                 <ModelSelector
                   models={models?.models}
@@ -269,22 +296,15 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
                   onModelSelect={setSelectedModel}
                 />
               )}
-              {status === "streaming" ? (
-                <PromptInputButton onClick={handleStop} className="rounded-md">
+              {status === "streaming" && (
+                <PromptInputButton onClick={handleStop} className="rounded-lg bg-destructive hover:bg-destructive/90 text-destructive-foreground">
                   <StopCircleIcon size={16} />
                   <span>Stop</span>
                 </PromptInputButton>
-              ) : (
-                messageToRender.length > 0 && (
-                  <PromptInputButton onClick={handleRetry} className="rounded-md">
-                    <RotateCcwIcon size={16} />
-                    <span>Retry</span>
-                  </PromptInputButton>
-                )
               )}
             </PromptInputTools>
 
-            <PromptInputSubmit status={status} className="rounded-md" />
+            <PromptInputSubmit status={status} className="rounded-lg" />
           </div>
         </PromptInput>
       </div>
