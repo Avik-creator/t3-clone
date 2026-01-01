@@ -9,7 +9,7 @@ import {
   ConversationContent,
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
-import { Message, MessageContent } from "@/components/ai-elements/message";
+import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import {
   PromptInput,
   PromptInputBody,
@@ -18,7 +18,6 @@ import {
   PromptInputTextarea,
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
-import { MessageResponse } from "@/components/ai-elements/message";
 import {
   Reasoning,
   ReasoningContent,
@@ -182,7 +181,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto p-6 relative size-full h-[calc(100vh-4rem)]">
+    <div className="max-w-7xl mx-auto px-2 py-2 sm:px-4 sm:py-4 lg:px-6 lg:py-6 relative size-full min-h-[calc(100vh-4rem)] h-[calc(100vh-4rem)]">
       <div className="flex flex-col h-full">
         <Conversation className={"h-full"}>
           <ConversationContent>
@@ -213,12 +212,15 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
 
                         case "reasoning":
                           return (
-                            <div key={`${message.id}-${i}`}>
-                              <Reasoning>
-                                <ReasoningTrigger />
-                                <ReasoningContent>{part.text}</ReasoningContent>
-                              </Reasoning>
-                            </div>
+                            <Reasoning
+                              className="max-w-full sm:max-w-2xl px-3 py-3 sm:px-4 sm:py-4 border border-muted rounded-md bg-muted/50"
+                              key={`${message.id}-${i}`}
+                            >
+                              <ReasoningTrigger />
+                              <ReasoningContent className="mt-2 italic font-light text-muted-foreground">
+                                {part.text}
+                              </ReasoningContent>
+                            </Reasoning>
                           );
                       }
                     })
@@ -252,6 +254,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type your message..."
+              className="rounded-md"
             // disabled={status === "" }
             />
           </PromptInputBody>
@@ -267,13 +270,13 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
                 />
               )}
               {status === "streaming" ? (
-                <PromptInputButton onClick={handleStop}>
+                <PromptInputButton onClick={handleStop} className="rounded-md">
                   <StopCircleIcon size={16} />
                   <span>Stop</span>
                 </PromptInputButton>
               ) : (
-                messages.length > 0 && (
-                  <PromptInputButton onClick={handleRetry}>
+                messageToRender.length > 0 && (
+                  <PromptInputButton onClick={handleRetry} className="rounded-md">
                     <RotateCcwIcon size={16} />
                     <span>Retry</span>
                   </PromptInputButton>
@@ -281,7 +284,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
               )}
             </PromptInputTools>
 
-            <PromptInputSubmit status={status} />
+            <PromptInputSubmit status={status} className="rounded-md" />
           </div>
         </PromptInput>
       </div>
