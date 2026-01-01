@@ -19,7 +19,7 @@ const layout = async ({ children }: LayoutProps) => {
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full overflow-hidden bg-background">
-        <ChatSidebar user={user} chats={chats} />
+        <ChatSidebar user={user} chats={chats || []} />
         <main className="flex flex-1 flex-col overflow-hidden relative">
           <header className="flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-md px-4 lg:h-[60px]">
             <SidebarTrigger />

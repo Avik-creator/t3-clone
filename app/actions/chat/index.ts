@@ -2,7 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { currentUser } from "@/app/actions/user/index";
-import { MessageRole, MessageType } from "@prisma/client";
+import { MessageRole, MessageType } from "@/lib/generated/prisma/client";
 import { revalidatePath } from "next/cache";
 
 export const createChatWithMessage = async (values: { content: string; model: string }) => {
@@ -88,6 +88,41 @@ export const getAllChats = async () => {
   }
 };
 
+
+export const getChatById = async (chatId: string) => {
+  const user = await currentUser();
+
+  if (!user) {
+    return {
+      success: false,
+      message: "Unauthorized user"
+    }
+  }
+
+  try {
+    const chat = await prisma.chat.findUnique({
+      where: {
+        id: chatId,
+        userId: user.id
+      },
+      include: {
+        messages: true
+      }
+    })
+
+    return {
+      success: true,
+      message: "Chat fetched successfully",
+      data: chat
+    }
+  } catch (error) {
+    console.error("Error fetching chat:", error);
+    return {
+      success: false,
+      message: "Failed to fetch chat"
+    };
+  }
+}
 
 export const deleteChat = async (chatId: string) => {
   try {
