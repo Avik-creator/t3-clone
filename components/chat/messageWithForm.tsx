@@ -3,11 +3,7 @@ import { useGetChatById } from "@/hooks/ai-agent";
 import { useChat } from "@ai-sdk/react";
 import { Fragment, useState, useEffect, useMemo, useRef } from "react";
 
-import {
-  Reasoning,
-  ReasoningContent,
-  ReasoningTrigger,
-} from "@/components/ai-elements/reasoning";
+
 import {
   Conversation,
   ConversationContent,
@@ -23,6 +19,11 @@ import {
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
 import { MessageResponse } from "@/components/ai-elements/message";
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningTrigger,
+} from "@/components/ai-elements/reasoning";
 
 import { Spinner } from "@/components/ui/spinner";
 import { ModelSelector } from "@/components/chat/modelSelector";
@@ -82,14 +83,6 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
       });
   }, [data]);
 
-  // Convert initial messages to useChat format
-  const convertedInitialMessages = useMemo(() => {
-    return initialMessages.map(msg => ({
-      id: msg.id,
-      role: msg.role as "user" | "assistant",
-      content: msg.parts?.find(p => p.type === "text")?.text || "",
-    })).filter(msg => msg.content);
-  }, [initialMessages]);
 
   const { stop, messages, status, sendMessage, regenerate } = useChat({
     transport: new DefaultChatTransport({
@@ -114,9 +107,9 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
     if (hasChatBeenTriggered(chatId)) return;
     if (!selectedModel) return;
     if (isPending || !data) return;
-    if (convertedInitialMessages.length === 0) return;
+    if (initialMessages.length === 0) return;
 
-    const lastMessage = convertedInitialMessages[convertedInitialMessages.length - 1];
+    const lastMessage = initialMessages[initialMessages.length - 1];
     if (lastMessage.role !== "user") return;
 
     hasAutoTriggered.current = true;
@@ -130,7 +123,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
     shouldAutoTrigger,
     chatId,
     selectedModel,
-    convertedInitialMessages,
+    initialMessages,
     data,
     isPending,
     markChatAsTriggered,
@@ -174,7 +167,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
 
   // Combine initial messages (from DB) with new messages (from useChat)
   const messageToRender = [
-    ...convertedInitialMessages.map(msg => ({
+    ...initialMessages.map(msg => ({
       ...msg,
       id: msg.id || `initial-${Date.now()}-${Math.random()}`, // Ensure unique ID
     })),
@@ -195,14 +188,44 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
             ) : (
               messageToRender.map((message: any) => (
                 <Fragment key={message.id}>
-                  <Message
-                    from={message.role as "user" | "system" | "assistant"}
-                    key={message.id}
-                  >
-                    <MessageContent>
-                      <MessageResponse>{message.content}</MessageResponse>
-                    </MessageContent>
-                  </Message>
+                  {/* Handle messages with parts array (from DB) */}
+                  {message.parts ? (
+                    message.parts.map((part: any, i: number) => {
+                      switch (part.type) {
+                        case "text":
+                          return (
+                            <Message
+                              from={message.role as "user" | "system" | "assistant"}
+                              key={`${message.id}-${i}`}
+                            >
+                              <MessageContent>
+                                <MessageResponse>{part.text}</MessageResponse>
+                              </MessageContent>
+                            </Message>
+                          );
+
+                        case "reasoning":
+                          return (
+                            <div key={`${message.id}-${i}`}>
+                              <Reasoning>
+                                <ReasoningTrigger />
+                                <ReasoningContent>{part.text}</ReasoningContent>
+                              </Reasoning>
+                            </div>
+                          );
+                      }
+                    })
+                  ) : (
+                    /* Handle messages with content property (from useChat) */
+                    <Message
+                      from={message.role as "user" | "system" | "assistant"}
+                      key={message.id}
+                    >
+                      <MessageContent>
+                        <MessageResponse>{message.content}</MessageResponse>
+                      </MessageContent>
+                    </Message>
+                  )}
                 </Fragment>
               ))
             )}
