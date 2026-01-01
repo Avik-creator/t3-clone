@@ -13,6 +13,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
 
   return (
     <ChatMessageView messages={messages} />
+
   );
 };
 
