@@ -158,7 +158,14 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
   };
 
   const handleRetry = () => {
-    regenerate();
+    // Find the last assistant message to regenerate
+    const lastAssistantMessage = [...messageToRender]
+      .reverse()
+      .find((msg) => msg.role === "assistant");
+
+    if (lastAssistantMessage) {
+      regenerate({ messageId: lastAssistantMessage.id });
+    }
   };
 
   const handleStop = () => {
