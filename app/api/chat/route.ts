@@ -46,7 +46,7 @@ function extractPartsAsJSON(message: any) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { chatId, messages: newMessages, model, skipUserMessageOnRegeneration } = await req.json();
+    const { chatId, messages: newMessages, model, skipUserMessageOnRegeneration, skipUserMessage } = await req.json();
 
     const previousChats = chatId ? await prisma.message.findMany({
       where: { chatId },
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
       onFinish: async ({ responseMessage }) => {
         try {
           const messagesToSave = [];
-          if (!skipUserMessageOnRegeneration) {
+          if (!(skipUserMessage || skipUserMessageOnRegeneration)) {
             const latestUserMessage =
               normalizeNewMessages[normalizeNewMessages.length - 1];
 

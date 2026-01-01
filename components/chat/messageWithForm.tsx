@@ -1,8 +1,12 @@
 "use client";
-// Using direct API calls instead of useChat hook
 import { useGetChatById } from "@/hooks/ai-agent";
-import { Fragment, useState, useEffect, useMemo } from "react";
+import { Fragment, useState, useEffect, useMemo, useRef } from "react";
 
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningTrigger,
+} from "@/components/ai-elements/reasoning";
 import {
   Conversation,
   ConversationContent,
@@ -22,6 +26,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { ModelSelector } from "@/components/chat/modelSelector";
 import { useAIModels } from "@/hooks/ai-agent";
 import { useChatStore } from "@/store/chatStore";
+import { useSearchParams, useRouter } from "next/navigation";
 
 import { RotateCcwIcon, StopCircleIcon } from "lucide-react";
 
@@ -32,9 +37,19 @@ interface MessageWithFormProps {
 const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
   const { data: models, isPending: isModelLoading } = useAIModels();
   const { data, isPending } = useGetChatById(chatId);
+  const { hasChatBeenTriggered, markChatAsTriggered } = useChatStore();
 
   const [selectedModel, setSelectedModel] = useState(data?.data?.model);
   const [input, setInput] = useState("");
+
+
+  const hasAutoTriggered = useRef(false);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const shouldAutoTrigger = searchParams.get("autoTrigger") === "true";
+
+
+
 
   const initialMessages = useMemo(() => {
     if (!data?.data?.messages) return [];
@@ -67,9 +82,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
   const [messages, setMessages] = useState<any[]>([]);
   const [status, setStatus] = useState<'submitted' | 'streaming' | 'ready' | 'error'>('ready');
 
-  const sendMessage = async (message: { text: string }, options?: { body?: any }) => {
-    if (!message.text.trim()) return;
-
+  const sendMessage = async (messageData: any) => {
     setStatus('submitted');
     try {
       const response = await fetch('/api/chat', {
@@ -77,22 +90,23 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chatId,
-          messages: [{ role: 'user', content: message.text, parts: [{ type: 'text', text: message.text }] }],
+          messages: messageData.content ? [{ role: 'user', content: messageData.content, parts: [{ type: 'text', text: messageData.content }] }] : [],
           model: selectedModel,
-          ...options?.body,
+          ...messageData.data,
         }),
       });
 
       if (!response.ok) throw new Error('Failed to send message');
 
       setStatus('streaming');
-      // For now, just add the user message
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        role: 'user',
-        parts: [{ type: 'text', text: message.text }],
-        createdAt: new Date(),
-      }]);
+      if (messageData.content) {
+        setMessages(prev => [...prev, {
+          id: Date.now().toString(),
+          role: 'user',
+          parts: [{ type: 'text', text: messageData.content }],
+          createdAt: new Date(),
+        }]);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       setStatus('error');
@@ -104,15 +118,51 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
   };
 
   const regenerate = () => {
-    // Simple regenerate - just clear last AI message if any
     setMessages(prev => prev.filter(msg => msg.role !== 'assistant').slice(0, -1));
   };
 
+
   useEffect(() => {
     if (data?.data?.model && !selectedModel) {
-      setSelectedModel(data.data.model);
+      setSelectedModel(data.data.model)
     }
-  }, [data, selectedModel]);
+  }, [data, selectedModel])
+
+  useEffect(() => {
+    if (hasAutoTriggered.current) return;
+    if (!shouldAutoTrigger) return;
+    if (hasChatBeenTriggered(chatId)) return;
+    if (!selectedModel) return;
+    if (initialMessages.length === 0) return;
+
+    const lastMessage = initialMessages[initialMessages.length - 1];
+
+    if (lastMessage.role !== "user") return;
+
+    hasAutoTriggered.current = true;
+    markChatAsTriggered(chatId)
+
+    sendMessage({
+      content: "",
+      data: {
+        model: selectedModel,
+        chatId,
+        skipUserMessage: true,
+      },
+    });
+
+    router.replace(`/chat/${chatId}`, { scroll: false })
+  }, [
+    shouldAutoTrigger,
+    chatId,
+    selectedModel,
+    initialMessages,
+    markChatAsTriggered,
+    hasChatBeenTriggered,
+    sendMessage,
+    router,
+  ])
+
 
   if (isPending) {
     return (
@@ -125,15 +175,13 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
   const handleSubmit = () => {
     if (!input.trim()) return;
 
-    sendMessage(
-      { text: input },
-      {
-        body: {
-          model: selectedModel,
-          chatId,
-        },
-      }
-    );
+    sendMessage({
+      content: input,
+      data: {
+        model: selectedModel,
+        chatId,
+      },
+    });
 
     setInput("");
   };
@@ -158,18 +206,18 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
             {messageToRender.length === 0 ? (
               <>
                 <div className="flex items-center justify-center h-full text-gray-500">
-                  Start a conversation...
+                  Start a coversation...
                 </div>
               </>
             ) : (
-              messageToRender.map((message) => (
+              messageToRender.map((message: any) => (
                 <Fragment key={message.id}>
                   {message.parts.map((part: any, i: number) => {
                     switch (part.type) {
                       case "text":
                         return (
                           <Message
-                            from={message.role}
+                            from={message.role as "user" | "system" | "assistant"}
                             key={`${message.id}-${i}`}
                           >
                             <MessageContent>
@@ -178,8 +226,18 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
                           </Message>
                         );
 
-                      default:
-                        return null;
+                      case "reasoning":
+                        return (
+                          <Reasoning
+                            className="max-w-2xl px-4 py-4 border border-muted rounded-md bg-muted/50"
+                            key={`${message.id}-${i}`}
+                          >
+                            <ReasoningTrigger />
+                            <ReasoningContent className="mt-2 italic font-light text-muted-foreground">
+                              {part.text}
+                            </ReasoningContent>
+                          </Reasoning>
+                        );
                     }
                   })}
                 </Fragment>
