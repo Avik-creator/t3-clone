@@ -409,7 +409,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
                                   <ModelSelectorLogo provider={provider} />
                                 )}
                                 {selectedModelData?.name && (
-                                  <ModelSelectorName className="truncate">
+                                  <ModelSelectorName>
                                     {selectedModelData.name}
                                   </ModelSelectorName>
                                 )}
@@ -442,7 +442,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
                                       value={model.id}
                                     >
                                       <ModelSelectorLogo provider={provider} />
-                                      <ModelSelectorName className="truncate">
+                                      <ModelSelectorName >
                                         {model.name}
                                       </ModelSelectorName>
                                       {selectedModel === model.id ? (
