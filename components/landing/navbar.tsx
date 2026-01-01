@@ -24,9 +24,13 @@ export const Navbar = () => {
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="relative h-8 w-8 bg-primary/10 rounded-lg flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                <Sparkles className="h-5 w-5 text-primary" />
-              </div>
+              <Image
+                src="/logo.svg"
+                alt="T3 Chat Logo"
+                width={32}
+                height={32}
+                className="transition-transform group-hover:scale-105"
+              />
               <span className="text-xl font-bold tracking-tight text-foreground">
                 T3 Chat
               </span>

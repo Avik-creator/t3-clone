@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/authClient";
 import { ArrowRight, Plus, Send, Sparkles } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 export const Hero = () => {
   const { data: session } = useSession();
@@ -72,7 +73,7 @@ export const Hero = () => {
               <div className="flex-1 p-6 space-y-6 overflow-y-auto">
                 <div className="flex gap-3">
                   <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Sparkles className="h-4 w-4 text-primary" />
+                    <Image src="/logo.svg" alt="T3 Chat" width={16} height={16} className="rounded-full" />
                   </div>
                   <div className="bg-muted/50 rounded-2xl p-4 text-sm max-w-[85%] leading-relaxed">
                     Hello! How can I help you today? You can ask me anything or
@@ -86,7 +87,7 @@ export const Hero = () => {
                 </div>
                 <div className="flex gap-3">
                   <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Sparkles className="h-4 w-4 text-primary" />
+                    <Image src="/logo.svg" alt="T3 Chat" width={16} height={16} className="rounded-full" />
                   </div>
                   <div className="bg-muted/50 rounded-2xl p-4 text-sm max-w-[85%] leading-relaxed">
                     We support GPT-5, Claude 4.5, and many other

@@ -18,6 +18,11 @@ export const metadata: Metadata = {
   title: "T3 Chat Clone - AI-Powered Conversations",
   description:
     "Experience the next generation of AI chat with T3 Chat Clone. Fast, secure, and designed for productivity.",
+  icons: {
+    icon: "/logo.svg",
+    shortcut: "/logo.svg",
+    apple: "/logo.svg",
+  },
   openGraph: {
     title: "T3 Chat Clone - AI-Powered Conversations",
     description:
