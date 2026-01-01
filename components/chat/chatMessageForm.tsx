@@ -7,12 +7,44 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAIModels } from "@/hooks/ai-agent";
 import { Spinner } from "@/components/ui/spinner";
 import { ModelSelector } from "@/components/chat/modelSelector";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { createChatWithMessage } from "@/app/actions/chat";
+import { toast } from "sonner";
 
-const ChatMessageForm = ({ initialMessage, onMessageChange }: { initialMessage: string, onMessageChange: (message: string) => void }) => {
+interface ChatMessageFormProps {
+  initialMessage: string;
+  onMessageChange: (message: string) => void;
+}
+
+const ChatMessageForm = ({ initialMessage, onMessageChange }: ChatMessageFormProps) => {
   const { data: models, isPending } = useAIModels();
-  console.log(models)
-  const [selectedModel, setSelectedModel] = useState(models?.models[0]?.id);
+  const [selectedModel, setSelectedModel] = useState<string>("");
   const [message, setMessage] = useState("");
+
+  const queryClient = useQueryClient();
+  const router = useRouter();
+
+  const mutation = useMutation({
+    mutationFn: (values: { content: string; model: string }) => createChatWithMessage(values),
+    onSuccess: (res) => {
+      if (res.success && res.data) {
+        const chat = res.data;
+        queryClient.invalidateQueries({ queryKey: ['chats'] });
+        router.push(`/chat/${chat.id}?autoTrigger=true`);
+      }
+    },
+    onError: (error) => {
+      console.error("Create chat error:", error);
+      toast.error("Failed to create chat");
+    }
+  });
+
+  useEffect(() => {
+    if (models?.models && models.models.length > 0 && !selectedModel) {
+      setSelectedModel(models.models[0].id);
+    }
+  }, [models, selectedModel]);
 
   useEffect(() => {
     if (initialMessage) {
@@ -21,12 +53,15 @@ const ChatMessageForm = ({ initialMessage, onMessageChange }: { initialMessage: 
     }
   }, [initialMessage, onMessageChange]);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement> | React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!message.trim() || !selectedModel) return;
+
     try {
-      e.preventDefault();
-      console.log("Message sent");
+      await mutation.mutateAsync({ content: message, model: selectedModel });
+      setMessage("");
     } catch (error) {
-      console.log(error);
+      console.error("Error sending message:", error);
     }
   };
 
@@ -45,7 +80,10 @@ const ChatMessageForm = ({ initialMessage, onMessageChange }: { initialMessage: 
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                handleSubmit(e);
+                if (message.trim() && selectedModel && !mutation.isPending) {
+                  mutation.mutate({ content: message, model: selectedModel });
+                  setMessage("");
+                }
               }
             }}
           />
@@ -71,12 +109,16 @@ const ChatMessageForm = ({ initialMessage, onMessageChange }: { initialMessage: 
             </div>
             <Button
               type="submit"
-              disabled={!message.trim()}
+              disabled={!message.trim() || mutation.isPending}
               size="sm"
               variant={message.trim() ? "default" : "ghost"}
-              className="h-8 w-8 p-0 rounded-full "
+              className="h-8 w-8 p-0 rounded-full"
             >
-              <Send className="h-4 w-4" />
+              {mutation.isPending ? (
+                <Spinner />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
               <span className="sr-only">Send message</span>
             </Button>
           </div>
