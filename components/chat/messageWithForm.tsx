@@ -384,13 +384,14 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
                         <PromptInputButton>
                           {(() => {
                             const selectedModelData = models?.models?.find((m: any) => m.id === selectedModel);
+                            const provider = selectedModelData?.id?.split('/')[0] || 'unknown';
                             return (
                               <>
-                                {selectedModelData?.provider && (
-                                  <ModelSelectorLogo provider={selectedModelData.provider} />
+                                {provider && provider !== 'unknown' && (
+                                  <ModelSelectorLogo provider={provider} />
                                 )}
                                 {selectedModelData?.name && (
-                                  <ModelSelectorName>
+                                  <ModelSelectorName className="truncate">
                                     {selectedModelData.name}
                                   </ModelSelectorName>
                                 )}
@@ -405,33 +406,36 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
                           <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
                           {models?.models &&
                             Object.entries(
-                              models.models.reduce((groups: Record<string, typeof models.models>, model: any) => {
-                                const provider = model.provider || 'unknown';
+                              models.models.reduce((groups: Record<string, any[]>, model: any) => {
+                                const provider = model.id?.split('/')[0] || 'unknown';
                                 if (!groups[provider]) {
                                   groups[provider] = [];
                                 }
                                 groups[provider].push(model);
                                 return groups;
-                              }, {} as Record<string, typeof models.models>)
-                            ).map(([provider, providerModels]) => (
-                              <ModelSelectorGroup key={provider} heading={provider}>
-                                {(providerModels as any[]).map((model: any) => (
-                                  <ModelSelectorItem
-                                    key={model.id}
-                                    onSelect={() => setSelectedModel(model.id)}
-                                    value={model.id}
-                                  >
-                                    <ModelSelectorLogo provider={model.provider} />
-                                    <ModelSelectorName>{model.name}</ModelSelectorName>
-                                    {selectedModel === model.id ? (
-                                      <CheckIcon className="ml-auto size-4" />
-                                    ) : (
-                                      <div className="ml-auto size-4" />
-                                    )}
-                                  </ModelSelectorItem>
-                                ))}
-                              </ModelSelectorGroup>
-                            ))}
+                              }, {} as Record<string, any[]>)
+                            ).filter(([provider]) => provider !== 'unknown')
+                              .map(([provider, providerModels]) => (
+                                <ModelSelectorGroup key={provider} heading={provider}>
+                                  {(providerModels as any[]).map((model: any) => (
+                                    <ModelSelectorItem
+                                      key={model.id}
+                                      onSelect={() => setSelectedModel(model.id)}
+                                      value={model.id}
+                                    >
+                                      <ModelSelectorLogo provider={provider} />
+                                      <ModelSelectorName className="truncate">
+                                        {model.name}
+                                      </ModelSelectorName>
+                                      {selectedModel === model.id ? (
+                                        <CheckIcon className="ml-auto size-4 shrink-0" />
+                                      ) : (
+                                        <div className="ml-auto size-4" />
+                                      )}
+                                    </ModelSelectorItem>
+                                  ))}
+                                </ModelSelectorGroup>
+                              ))}
                         </ModelSelectorList>
                       </ModelSelectorContent>
                     </ModelSelector>
