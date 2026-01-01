@@ -5,6 +5,7 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider"
 import { CHAT_SYSTEM_PROMPT } from "@/lib/prompt";
 import { Message } from "@/lib/generated/prisma/client";
 import { NextRequest } from "next/server";
+import { currentUser } from "@/app/actions/user/index";
 
 const provider = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -25,7 +26,11 @@ function convertMessageToUI(message: Message) {
     }
 
   } catch (error) {
-    console.error("Error converting message to UI:", error);
+    // This is expected for messages stored as plain text during initial chat creation
+    // Only log unexpected errors
+    if (!(error instanceof SyntaxError && typeof message.content === 'string')) {
+      console.error("Error converting message to UI:", error);
+    }
     return {
       id: message.id,
       role: message.messageRole.toLowerCase(),
@@ -46,10 +51,23 @@ function extractPartsAsJSON(message: any) {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await currentUser();
+    if (!user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const { chatId, messages: newMessages, model, skipUserMessageOnRegeneration, skipUserMessage } = await req.json();
 
     const previousChats = chatId ? await prisma.message.findMany({
-      where: { chatId },
+      where: {
+        chatId,
+        chat: {
+          userId: user.id // Ensure messages belong to the current user
+        }
+      },
       orderBy: { createdAt: "asc" },
     }) : [];
 

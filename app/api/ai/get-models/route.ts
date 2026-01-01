@@ -45,8 +45,33 @@ export async function GET(req: NextRequest) {
       return promptPrice === 0 && completionPrice === 0;
     });
 
+    // Sort models to prioritize more reliable ones
+    const prioritizedModels = freeModels.sort((a: Model, b: Model) => {
+      const priorityOrder = [
+        'anthropic/claude-3-haiku:beta',
+        'anthropic/claude-3-haiku',
+        'meta-llama/llama-3.2-3b-instruct:free',
+        'meta-llama/llama-3.1-8b-instruct:free',
+        'microsoft/wizardlm-2-8x22b:free',
+        'mistralai/mistral-7b-instruct:free',
+      ];
+
+      const aPriority = priorityOrder.indexOf(a.id);
+      const bPriority = priorityOrder.indexOf(b.id);
+
+      // If both are in priority list, sort by priority
+      if (aPriority !== -1 && bPriority !== -1) {
+        return aPriority - bPriority;
+      }
+      // If only one is in priority list, prioritize it
+      if (aPriority !== -1) return -1;
+      if (bPriority !== -1) return 1;
+      // Otherwise, sort alphabetically
+      return a.name.localeCompare(b.name);
+    });
+
     // Return formatted response with useful model information
-    const formattedModels = freeModels.map((model: Model) => ({
+    const formattedModels = prioritizedModels.map((model: Model) => ({
       id: model.id,
       name: model.name,
       description: model.description,

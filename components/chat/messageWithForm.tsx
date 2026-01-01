@@ -1,5 +1,6 @@
 "use client";
 import { useGetChatById } from "@/hooks/ai-agent";
+import { useChat } from "@ai-sdk/react";
 import { Fragment, useState, useEffect, useMemo, useRef } from "react";
 
 import {
@@ -21,6 +22,7 @@ import {
   PromptInputTextarea,
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
+import { MessageResponse } from "@/components/ai-elements/message";
 
 import { Spinner } from "@/components/ui/spinner";
 import { ModelSelector } from "@/components/chat/modelSelector";
@@ -29,6 +31,7 @@ import { useChatStore } from "@/store/chatStore";
 import { useSearchParams, useRouter } from "next/navigation";
 
 import { RotateCcwIcon, StopCircleIcon } from "lucide-react";
+import { DefaultChatTransport } from "ai";
 
 interface MessageWithFormProps {
   chatId: string;
@@ -36,7 +39,7 @@ interface MessageWithFormProps {
 
 const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
   const { data: models, isPending: isModelLoading } = useAIModels();
-  const { data, isPending } = useGetChatById(chatId);
+  const { data, isPending, isLoading } = useGetChatById(chatId);
   const { hasChatBeenTriggered, markChatAsTriggered } = useChatStore();
 
   const [selectedModel, setSelectedModel] = useState(data?.data?.model);
@@ -79,47 +82,23 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
       });
   }, [data]);
 
-  const [messages, setMessages] = useState<any[]>([]);
-  const [status, setStatus] = useState<'submitted' | 'streaming' | 'ready' | 'error'>('ready');
+  // Convert initial messages to useChat format
+  const convertedInitialMessages = useMemo(() => {
+    return initialMessages.map(msg => ({
+      id: msg.id,
+      role: msg.role as "user" | "assistant",
+      content: msg.parts?.find(p => p.type === "text")?.text || "",
+    })).filter(msg => msg.content);
+  }, [initialMessages]);
 
-  const sendMessage = async (messageData: any) => {
-    setStatus('submitted');
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chatId,
-          messages: messageData.content ? [{ role: 'user', content: messageData.content, parts: [{ type: 'text', text: messageData.content }] }] : [],
-          model: selectedModel,
-          ...messageData.data,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to send message');
-
-      setStatus('streaming');
-      if (messageData.content) {
-        setMessages(prev => [...prev, {
-          id: Date.now().toString(),
-          role: 'user',
-          parts: [{ type: 'text', text: messageData.content }],
-          createdAt: new Date(),
-        }]);
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      setStatus('error');
-    }
-  };
-
-  const stop = () => {
-    setStatus('ready');
-  };
-
-  const regenerate = () => {
-    setMessages(prev => prev.filter(msg => msg.role !== 'assistant').slice(0, -1));
-  };
+  const { stop, messages, status, sendMessage, regenerate } = useChat({
+    transport: new DefaultChatTransport({
+      api: '/api/chat',
+      body: {
+        chatId,
+      },
+    }),
+  });
 
 
   useEffect(() => {
@@ -128,38 +107,35 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
     }
   }, [data, selectedModel])
 
+
   useEffect(() => {
     if (hasAutoTriggered.current) return;
     if (!shouldAutoTrigger) return;
     if (hasChatBeenTriggered(chatId)) return;
     if (!selectedModel) return;
-    if (initialMessages.length === 0) return;
+    if (isPending || !data) return;
+    if (convertedInitialMessages.length === 0) return;
 
-    const lastMessage = initialMessages[initialMessages.length - 1];
-
+    const lastMessage = convertedInitialMessages[convertedInitialMessages.length - 1];
     if (lastMessage.role !== "user") return;
 
     hasAutoTriggered.current = true;
     markChatAsTriggered(chatId)
 
-    sendMessage({
-      content: "",
-      data: {
-        model: selectedModel,
-        chatId,
-        skipUserMessage: true,
-      },
-    });
+    // For auto-trigger, use regenerate to get AI response to existing conversation
+    regenerate();
 
     router.replace(`/chat/${chatId}`, { scroll: false })
   }, [
     shouldAutoTrigger,
     chatId,
     selectedModel,
-    initialMessages,
+    convertedInitialMessages,
+    data,
+    isPending,
     markChatAsTriggered,
     hasChatBeenTriggered,
-    sendMessage,
+    regenerate,
     router,
   ])
 
@@ -175,13 +151,15 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
   const handleSubmit = () => {
     if (!input.trim()) return;
 
-    sendMessage({
-      content: input,
-      data: {
-        model: selectedModel,
-        chatId,
-      },
-    });
+    sendMessage(
+      { text: input },
+      {
+        body: {
+          model: selectedModel,
+          chatId,
+        },
+      }
+    );
 
     setInput("");
   };
@@ -194,9 +172,14 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
     stop();
   };
 
-  const messageToRender = [...initialMessages, ...messages];
-
-  console.log(messageToRender);
+  // Combine initial messages (from DB) with new messages (from useChat)
+  const messageToRender = [
+    ...convertedInitialMessages.map(msg => ({
+      ...msg,
+      id: msg.id || `initial-${Date.now()}-${Math.random()}`, // Ensure unique ID
+    })),
+    ...messages
+  ];
 
   return (
     <div className="max-w-4xl mx-auto p-6 relative size-full h-[calc(100vh-4rem)]">
@@ -212,41 +195,21 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
             ) : (
               messageToRender.map((message: any) => (
                 <Fragment key={message.id}>
-                  {message.parts.map((part: any, i: number) => {
-                    switch (part.type) {
-                      case "text":
-                        return (
-                          <Message
-                            from={message.role as "user" | "system" | "assistant"}
-                            key={`${message.id}-${i}`}
-                          >
-                            <MessageContent>
-                              <div className="text-sm">{part.text}</div>
-                            </MessageContent>
-                          </Message>
-                        );
-
-                      case "reasoning":
-                        return (
-                          <Reasoning
-                            className="max-w-2xl px-4 py-4 border border-muted rounded-md bg-muted/50"
-                            key={`${message.id}-${i}`}
-                          >
-                            <ReasoningTrigger />
-                            <ReasoningContent className="mt-2 italic font-light text-muted-foreground">
-                              {part.text}
-                            </ReasoningContent>
-                          </Reasoning>
-                        );
-                    }
-                  })}
+                  <Message
+                    from={message.role as "user" | "system" | "assistant"}
+                    key={message.id}
+                  >
+                    <MessageContent>
+                      <MessageResponse>{message.content}</MessageResponse>
+                    </MessageContent>
+                  </Message>
                 </Fragment>
               ))
             )}
             {status === "streaming" && (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Spinner />
-                <span className="text-sm">AI is thinking...</span>
+                <span className="text-sm">AI is thinking... (status: {status})</span>
               </div>
             )}
           </ConversationContent>
@@ -279,7 +242,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
                   <span>Stop</span>
                 </PromptInputButton>
               ) : (
-                messageToRender.length > 0 && (
+                messages.length > 0 && (
                   <PromptInputButton onClick={handleRetry}>
                     <RotateCcwIcon size={16} />
                     <span>Retry</span>

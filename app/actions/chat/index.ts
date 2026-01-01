@@ -30,7 +30,7 @@ export const createChatWithMessage = async (values: { content: string; model: st
         userId: user.id,
         messages: {
           create: {
-            content,
+            content: JSON.stringify([{ type: "text", text: content }]),
             messageRole: MessageRole.USER,
             messageType: MessageType.NORMAL,
             model,
