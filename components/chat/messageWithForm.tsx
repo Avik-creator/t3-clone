@@ -12,12 +12,35 @@ import {
 import { Message, MessageContent, MessageResponse, MessageToolbar, MessageAction } from "@/components/ai-elements/message";
 import {
   PromptInput,
+  PromptInputActionAddAttachments,
+  PromptInputActionMenu,
+  PromptInputActionMenuContent,
+  PromptInputActionMenuTrigger,
+  PromptInputAttachment,
+  PromptInputAttachments,
   PromptInputBody,
   PromptInputButton,
+  PromptInputFooter,
+  PromptInputHeader,
+  type PromptInputMessage,
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
+import {
+  ModelSelector,
+  ModelSelectorContent,
+  ModelSelectorEmpty,
+  ModelSelectorGroup,
+  ModelSelectorInput,
+  ModelSelectorItem,
+  ModelSelectorList,
+  ModelSelectorLogo,
+  ModelSelectorLogoGroup,
+  ModelSelectorName,
+  ModelSelectorTrigger,
+} from "@/components/ai-elements/model-selector";
+import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
 import {
   Reasoning,
   ReasoningContent,
@@ -25,13 +48,23 @@ import {
 } from "@/components/ai-elements/reasoning";
 
 import { Spinner } from "@/components/ui/spinner";
-import { ModelSelector } from "@/components/chat/modelSelector";
 import { useAIModels } from "@/hooks/ai-agent";
 import { useChatStore } from "@/store/chatStore";
 import { useSearchParams, useRouter } from "next/navigation";
 
-import { RotateCcwIcon, StopCircleIcon } from "lucide-react";
+import { RotateCcwIcon, StopCircleIcon, CheckIcon } from "lucide-react";
 import { DefaultChatTransport } from "ai";
+
+const suggestions = [
+  "What are the latest trends in AI?",
+  "How does machine learning work?",
+  "Explain quantum computing",
+  "Best practices for React development",
+  "Tell me about TypeScript benefits",
+  "How to optimize database queries?",
+  "What is the difference between SQL and NoSQL?",
+  "Explain cloud computing basics",
+];
 
 interface MessageWithFormProps {
   chatId: string;
@@ -140,11 +173,16 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
     );
   }
 
-  const handleSubmit = () => {
-    if (!input.trim()) return;
+  const handleSubmit = (message: PromptInputMessage) => {
+    const hasText = Boolean(message.text);
+    const hasAttachments = Boolean(message.files?.length);
+
+    if (!(hasText || hasAttachments)) {
+      return;
+    }
 
     sendMessage(
-      { text: input },
+      { text: message.text || "" },
       {
         body: {
           model: selectedModel,
@@ -156,13 +194,39 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
     setInput("");
   };
 
+  const handleSuggestionClick = (suggestion: string) => {
+    sendMessage(
+      { text: suggestion },
+      {
+        body: {
+          model: selectedModel,
+          chatId,
+        },
+      }
+    );
+  };
+
   const handleRetry = (messageId?: string) => {
     if (messageId) {
-      // Retry a specific message
-      regenerate({ messageId });
+      // Check if this message is from useChat's messages array (not initialMessages)
+      const messageFromUseChat = messages.find(msg => msg.id === messageId);
+
+      if (messageFromUseChat && messageFromUseChat.role === "assistant") {
+        // Retry the specific assistant message from useChat
+        regenerate({ messageId });
+      } else {
+        // If it's not a useChat message, regenerate the last assistant message from useChat
+        const lastAssistantMessage = [...messages]
+          .reverse()
+          .find((msg) => msg.role === "assistant");
+
+        if (lastAssistantMessage) {
+          regenerate({ messageId: lastAssistantMessage.id });
+        }
+      }
     } else {
-      // Fallback: Find the last assistant message to regenerate
-      const lastAssistantMessage = [...messageToRender]
+      // Fallback: Find the last assistant message from useChat to regenerate
+      const lastAssistantMessage = [...messages]
         .reverse()
         .find((msg) => msg.role === "assistant");
 
@@ -181,8 +245,12 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
     ...initialMessages.map(msg => ({
       ...msg,
       id: msg.id || `initial-${Date.now()}-${Math.random()}`, // Ensure unique ID
+      isFromUseChat: false, // Mark as not from useChat
     })),
-    ...messages
+    ...messages.map(msg => ({
+      ...msg,
+      isFromUseChat: true, // Mark as from useChat
+    }))
   ];
 
   return (
@@ -212,7 +280,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
                               <MessageContent>
                                 <MessageResponse>{part.text}</MessageResponse>
                               </MessageContent>
-                              {message.role === "assistant" && (
+                              {message.role === "assistant" && message.isFromUseChat && (
                                 <MessageToolbar>
                                   <MessageAction
                                     onClick={() => handleRetry(message.id)}
@@ -248,7 +316,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
                       <MessageContent>
                         <MessageResponse>{message.content}</MessageResponse>
                       </MessageContent>
-                      {message.role === "assistant" && (
+                      {message.role === "assistant" && message.isFromUseChat && (
                         <MessageToolbar>
                           <MessageAction
                             onClick={() => handleRetry(message.id)}
@@ -273,40 +341,116 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
           <ConversationScrollButton />
         </Conversation>
 
-        <PromptInput onSubmit={handleSubmit} className={"mt-6"}>
-          <PromptInputBody>
-            <PromptInputTextarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your message..."
-              className="rounded-lg border-2 focus:border-primary/50 transition-colors min-h-[60px] resize-none"
-            />
-          </PromptInputBody>
-          <div className="flex items-center justify-between">
-            <PromptInputTools className={"flex items-center gap-3"}>
-              {isModelLoading ? (
-                <div className="flex items-center gap-2 px-3 py-2">
-                  <Spinner className="h-4 w-4" />
-                  <span className="text-sm text-muted-foreground">Loading models...</span>
-                </div>
-              ) : (
-                <ModelSelector
-                  models={models?.models}
-                  selectedModelId={selectedModel || ""}
-                  onModelSelect={setSelectedModel}
+        <div className="grid shrink-0 gap-4 pt-4">
+          <Suggestions className="px-4">
+            {suggestions.map((suggestion) => (
+              <Suggestion
+                key={suggestion}
+                onClick={() => handleSuggestionClick(suggestion)}
+                suggestion={suggestion}
+              />
+            ))}
+          </Suggestions>
+          <div className="w-full px-4 pb-4">
+            <PromptInput globalDrop multiple onSubmit={handleSubmit}>
+              <PromptInputHeader>
+                <PromptInputAttachments>
+                  {(attachment) => <PromptInputAttachment data={attachment} />}
+                </PromptInputAttachments>
+              </PromptInputHeader>
+              <PromptInputBody>
+                <PromptInputTextarea
+                  onChange={(event) => setInput(event.target.value)}
+                  value={input}
+                  placeholder="Type your message..."
                 />
-              )}
-              {status === "streaming" && (
-                <PromptInputButton onClick={handleStop} className="rounded-lg bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-                  <StopCircleIcon size={16} />
-                  <span>Stop</span>
-                </PromptInputButton>
-              )}
-            </PromptInputTools>
-
-            <PromptInputSubmit status={status} className="rounded-lg" />
+              </PromptInputBody>
+              <PromptInputFooter>
+                <PromptInputTools>
+                  <PromptInputActionMenu>
+                    <PromptInputActionMenuTrigger />
+                    <PromptInputActionMenuContent>
+                      <PromptInputActionAddAttachments />
+                    </PromptInputActionMenuContent>
+                  </PromptInputActionMenu>
+                  {isModelLoading ? (
+                    <div className="flex items-center gap-2 px-3 py-2">
+                      <Spinner className="h-4 w-4" />
+                      <span className="text-sm text-muted-foreground">Loading models...</span>
+                    </div>
+                  ) : (
+                    <ModelSelector>
+                      <ModelSelectorTrigger asChild>
+                        <PromptInputButton>
+                          {(() => {
+                            const selectedModelData = models?.models?.find((m: any) => m.id === selectedModel);
+                            return (
+                              <>
+                                {selectedModelData?.provider && (
+                                  <ModelSelectorLogo provider={selectedModelData.provider} />
+                                )}
+                                {selectedModelData?.name && (
+                                  <ModelSelectorName>
+                                    {selectedModelData.name}
+                                  </ModelSelectorName>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </PromptInputButton>
+                      </ModelSelectorTrigger>
+                      <ModelSelectorContent>
+                        <ModelSelectorInput placeholder="Search models..." />
+                        <ModelSelectorList>
+                          <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
+                          {models?.models &&
+                            Object.entries(
+                              models.models.reduce((groups: Record<string, typeof models.models>, model: any) => {
+                                const provider = model.provider || 'unknown';
+                                if (!groups[provider]) {
+                                  groups[provider] = [];
+                                }
+                                groups[provider].push(model);
+                                return groups;
+                              }, {} as Record<string, typeof models.models>)
+                            ).map(([provider, providerModels]) => (
+                              <ModelSelectorGroup key={provider} heading={provider}>
+                                {(providerModels as any[]).map((model: any) => (
+                                  <ModelSelectorItem
+                                    key={model.id}
+                                    onSelect={() => setSelectedModel(model.id)}
+                                    value={model.id}
+                                  >
+                                    <ModelSelectorLogo provider={model.provider} />
+                                    <ModelSelectorName>{model.name}</ModelSelectorName>
+                                    {selectedModel === model.id ? (
+                                      <CheckIcon className="ml-auto size-4" />
+                                    ) : (
+                                      <div className="ml-auto size-4" />
+                                    )}
+                                  </ModelSelectorItem>
+                                ))}
+                              </ModelSelectorGroup>
+                            ))}
+                        </ModelSelectorList>
+                      </ModelSelectorContent>
+                    </ModelSelector>
+                  )}
+                  {status === "streaming" && (
+                    <PromptInputButton onClick={handleStop}>
+                      <StopCircleIcon size={16} />
+                      <span className="sr-only">Stop</span>
+                    </PromptInputButton>
+                  )}
+                </PromptInputTools>
+                <PromptInputSubmit
+                  disabled={!(input.trim() || status) || status === "streaming"}
+                  status={status}
+                />
+              </PromptInputFooter>
+            </PromptInput>
           </div>
-        </PromptInput>
+        </div>
       </div>
     </div>
   );
