@@ -22,7 +22,11 @@ interface DeleteChatModalProps {
   chatId: string;
 }
 
-const DeleteChatModal = ({ isModalOpen, setIsModalOpen, chatId }: DeleteChatModalProps) => {
+const DeleteChatModal = ({
+  isModalOpen,
+  setIsModalOpen,
+  chatId,
+}: DeleteChatModalProps) => {
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -33,7 +37,7 @@ const DeleteChatModal = ({ isModalOpen, setIsModalOpen, chatId }: DeleteChatModa
         queryClient.invalidateQueries({ queryKey: ["chats"] });
         toast.success("Chat deleted successfully");
         setIsModalOpen(false);
-        router.push("/");
+        router.push("/chat");
       } else {
         toast.error(res.message || "Failed to delete chat");
       }
@@ -54,12 +58,14 @@ const DeleteChatModal = ({ isModalOpen, setIsModalOpen, chatId }: DeleteChatModa
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Chat</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete this chat? This action cannot be undone.
+            Are you sure you want to delete this chat? This action cannot be
+            undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="py-4">
           <p className="text-sm text-muted-foreground">
-            Once deleted, all messages and data in this chat will be permanently removed.
+            Once deleted, all messages and data in this chat will be permanently
+            removed.
           </p>
         </div>
         <AlertDialogFooter>
