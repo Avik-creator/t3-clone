@@ -168,8 +168,11 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
   };
 
   const handleRetry = (messageId?: string) => {
-    // Only regenerate if there are messages in useChat state
-    if (messages.length > 0 && messageId) {
+    // Check if this message exists in useChat's messages array
+    const messageInUseChat = messages.find((m) => m.id === messageId);
+
+    if (messageInUseChat && messages.length > 0) {
+      // Message exists in useChat, can use regenerate
       regenerate({
         messageId,
         body: {
@@ -178,17 +181,45 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
         },
       });
     } else {
-      // If no messages in useChat, send empty message to trigger AI response
-      sendMessage(
-        { text: "" },
-        {
-          body: {
-            model: activeModel,
-            chatId,
-            skipUserMessage: true,
-          },
+      // Message is from DB (initialMessages), find the preceding user message
+      const messageIndex = initialMessages.findIndex((m) => m.id === messageId);
+
+      // Look for the user message before this assistant message
+      let userMessage = "";
+      for (let i = messageIndex - 1; i >= 0; i--) {
+        if (initialMessages[i].role === "user") {
+          const textPart = initialMessages[i].parts.find(
+            (p) => p.type === "text"
+          );
+          userMessage = textPart?.text || "";
+          break;
         }
-      );
+      }
+
+      // Send the user message again to regenerate the response
+      if (userMessage) {
+        sendMessage(
+          { text: userMessage },
+          {
+            body: {
+              model: activeModel,
+              chatId,
+            },
+          }
+        );
+      } else {
+        // Fallback: just trigger AI response without user message
+        sendMessage(
+          { text: "" },
+          {
+            body: {
+              model: activeModel,
+              chatId,
+              skipUserMessage: true,
+            },
+          }
+        );
+      }
     }
   };
 
@@ -225,7 +256,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
   return (
     <div className="max-w-4xl mx-auto p-6 relative size-full h-[calc(100vh-4rem)]">
       <div className="flex flex-col h-full">
-        <Conversation className="h-full">
+        <Conversation className="h-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <ConversationContent>
             {messageToRender.length === 0 ? (
               <div className="flex items-center justify-center h-full text-gray-500">
