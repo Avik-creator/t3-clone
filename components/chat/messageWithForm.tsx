@@ -256,8 +256,8 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
   return (
     <div className="max-w-4xl mx-auto p-6 relative size-full h-[calc(100vh-4rem)]">
       <div className="flex flex-col h-full">
-        <Conversation className="h-full [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <ConversationContent>
+        <Conversation className="h-full no-scrollbar">
+          <ConversationContent className="no-scrollbar">
             {messageToRender.length === 0 ? (
               <div className="flex items-center justify-center h-full text-gray-500">
                 Start a conversation...
