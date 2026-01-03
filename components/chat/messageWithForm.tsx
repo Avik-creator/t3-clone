@@ -58,10 +58,14 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
   const { data, isPending } = useGetChatById(chatId);
   const { hasChatBeenTriggered, markChatAsTriggered } = useChatStore();
 
-  const [selectedModel, setSelectedModel] = useState<string>(
-    data?.data?.model || ""
-  );
+  // Derive default model from data
+  const defaultModel = useMemo(() => data?.data?.model ?? "", [data]);
+
+  const [selectedModel, setSelectedModel] = useState<string>("");
   const [input, setInput] = useState("");
+
+  // Use derived model if no selection made
+  const activeModel = selectedModel || defaultModel;
 
   const hasAutoTriggered = useRef(false);
   const searchParams = useSearchParams();
@@ -103,16 +107,10 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
   });
 
   useEffect(() => {
-    if (data?.data?.model && !selectedModel) {
-      setSelectedModel(data.data.model);
-    }
-  }, [data, selectedModel]);
-
-  useEffect(() => {
     if (hasAutoTriggered.current) return;
     if (!shouldAutoTrigger) return;
     if (hasChatBeenTriggered(chatId)) return;
-    if (!selectedModel) return;
+    if (!activeModel) return;
     if (initialMessages.length === 0) return;
 
     const lastMessage = initialMessages[initialMessages.length - 1];
@@ -127,7 +125,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
       { text: "" },
       {
         body: {
-          model: selectedModel,
+          model: activeModel,
           chatId,
           skipUserMessage: true,
         },
@@ -138,7 +136,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
   }, [
     shouldAutoTrigger,
     chatId,
-    selectedModel,
+    activeModel,
     initialMessages,
     markChatAsTriggered,
     hasChatBeenTriggered,
@@ -161,7 +159,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
       { text: input },
       {
         body: {
-          model: selectedModel,
+          model: activeModel,
           chatId,
         },
       }
@@ -175,7 +173,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
       regenerate({
         messageId,
         body: {
-          model: selectedModel,
+          model: activeModel,
           chatId,
         },
       });
@@ -185,7 +183,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
         { text: "" },
         {
           body: {
-            model: selectedModel,
+            model: activeModel,
             chatId,
             skipUserMessage: true,
           },
@@ -249,17 +247,16 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
                             <MessageContent>
                               <MessageResponse>{part.text}</MessageResponse>
                             </MessageContent>
-                            {message.role === "assistant" &&
-                              message.isFromUseChat && (
-                                <MessageActions className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <MessageAction
-                                    onClick={() => handleRetry(message.id)}
-                                    tooltip="Regenerate"
-                                  >
-                                    <RotateCcwIcon size={12} />
-                                  </MessageAction>
-                                </MessageActions>
-                              )}
+                            {message.role === "assistant" && (
+                              <MessageActions className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                <MessageAction
+                                  onClick={() => handleRetry(message.id)}
+                                  tooltip="Regenerate"
+                                >
+                                  <RotateCcwIcon size={12} />
+                                </MessageAction>
+                              </MessageActions>
+                            )}
                           </Message>
                         );
                       case "reasoning":
@@ -267,6 +264,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
                           <Reasoning
                             className="max-w-2xl px-4 py-4 border border-muted rounded-md bg-muted/50"
                             key={`${message.id}-${i}`}
+                            isStreaming={status === "streaming"}
                           >
                             <ReasoningTrigger />
                             <ReasoningContent className="mt-2 italic font-light text-muted-foreground">
@@ -280,12 +278,6 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
                   })}
                 </Fragment>
               ))
-            )}
-            {status === "streaming" && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Spinner />
-                <span className="text-sm">AI is thinking...</span>
-              </div>
             )}
           </ConversationContent>
           <ConversationScrollButton />
@@ -306,7 +298,7 @@ const MessageWithForm = ({ chatId }: MessageWithFormProps) => {
               ) : (
                 <ModelSelector
                   models={models?.models}
-                  selectedModelId={selectedModel}
+                  selectedModelId={activeModel}
                   onModelSelect={setSelectedModel}
                 />
               )}
